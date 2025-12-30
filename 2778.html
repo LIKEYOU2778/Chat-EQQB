@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ChatGPT - Casual Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #212121; -webkit-tap-highlight-color: transparent; }
+        
+        .chatgpt-logo-invert { filter: invert(1); width: 44px; height: 44px; object-fit: contain; }
+        .avatar-invert { filter: invert(1); width: 22px; height: 22px; object-fit: contain; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @media (max-width: 768px) {
+            #sidebar { transform: translateX(-100%); position: fixed; z-index: 50; width: 280px; }
+            #sidebar.open { transform: translateX(0); }
+            #overlay { display: none; }
+            #overlay.active { display: block; }
+        }
+
+        .dot-pulse { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+        .dot { width: 6px; height: 6px; background-color: #ececec; border-radius: 50%; opacity: 0.4; animation: dotJump 1.4s infinite ease-in-out; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dotJump {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+            40% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        .suggestion-btn {
+            background-color: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 14px;
+            transition: all 0.2s;
+            color: #b4b4b4;
+        }
+        .suggestion-btn:hover { background-color: #2f2f2f; color: #fff; border-color: rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body class="text-[#ececec] flex h-screen w-full overflow-hidden">
+
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40"></div>
+
+    <aside id="sidebar" class="bg-[#171717] h-full flex flex-col p-3 transition-all duration-300 border-r border-white/5 w-[260px] shrink-0">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="resetChat()" class="flex items-center gap-2 hover:bg-[#2c2d32] p-2 rounded-xl transition-all flex-1 border border-white/10 active:scale-95">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                <span class="text-sm font-medium">新聊天</span>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto no-scrollbar">
+            <p class="px-3 py-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">今日记录</p>
+            <div class="space-y-1">
+                <div class="px-3 py-2 text-sm rounded-xl hover:bg-[#2c2d32] cursor-pointer truncate">闲聊模式</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative h-full bg-[#212121] min-w-0">
+        <header class="h-14 flex items-center justify-center px-4 shrink-0 relative">
+            <button onclick="toggleSidebar()" class="absolute left-4 md:hidden p-2 hover:bg-[#2f2f2f] rounded-lg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#2f2f2f] cursor-pointer">
+                <span class="font-semibold text-lg text-gray-400">ChatEQQB 2778</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+        </header>
+
+        <div id="scroll-area" class="flex-1 overflow-y-auto no-scrollbar">
+            <div id="welcome-ui" class="h-full flex flex-col items-center justify-center px-6 max-w-2xl mx-auto">
+                <img src="https://freelogopng.com/images/all_img/1681038325chatgpt-logo-transparent.png" alt="Logo" class="chatgpt-logo-invert mb-8">
+                <h2 class="text-2xl font-semibold text-center mb-8">想聊点什么？</h2>
+                
+                <!-- 修改后的闲聊快捷按钮 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                    <button onclick="quickSend('在干嘛呢？')" class="suggestion-btn">
+                        <span class="block text-white font-medium">在干嘛呢？</span>
+                        <span class="text-xs">随便问问，看看它回啥</span>
+                    </button>
+                    <button onclick="quickSend('发张照片来看看')" class="suggestion-btn">
+                        <span class="block text-white font-medium">发张照片来看看</span>
+                        <span class="text-xs">想看看你的近况</span>
+                    </button>
+                    <button onclick="quickSend('你今天真好看')" class="suggestion-btn">
+                        <span class="block text-white font-medium">你今天真好看</span>
+                        <span class="text-xs">夸夸它，说不定有惊喜</span>
+                    </button>
+                    <button onclick="quickSend('理我一下下')" class="suggestion-btn">
+                        <span class="block text-white font-medium">理我一下下</span>
+                        <span class="text-xs">别装死，快出来</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="messages" class="max-w-3xl mx-auto w-full px-4 py-8 space-y-10 hidden"></div>
+        </div>
+
+        <div class="w-full bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-10 pb-6 shrink-0">
+            <div class="max-w-3xl mx-auto px-4">
+                <div class="bg-[#2f2f2f] rounded-[28px] p-2 flex flex-col border border-white/5 focus-within:border-white/20 shadow-2xl transition-all">
+                    <textarea id="user-input" rows="1" placeholder="发送消息..." class="w-full bg-transparent border-none focus:ring-0 resize-none text-white px-4 py-3 max-h-[200px]"></textarea>
+                    <div class="flex items-center justify-end px-2 pb-1">
+                        <button id="send-btn" disabled onclick="handleSend()" class="bg-white text-black w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center disabled:opacity-10 transition-all active:scale-90 hover:scale-105">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const scrollArea = document.getElementById('scroll-area');
+        const messages = document.getElementById('messages');
+        const welcomeUI = document.getElementById('welcome-ui');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        function resetChat() {
+            messages.innerHTML = '';
+            messages.classList.add('hidden');
+            welcomeUI.classList.remove('hidden');
+            userInput.value = '';
+            userInput.style.height = 'auto';
+        }
+
+        function quickSend(text) {
+            userInput.value = text;
+            handleSend();
+        }
+
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+            sendBtn.disabled = !this.value.trim();
+        });
+
+        function handleSend() {
+            const val = userInput.value.trim();
+            if(!val) return;
+
+            welcomeUI.classList.add('hidden');
+            messages.classList.remove('hidden');
+
+            appendMsg(val, false);
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            sendBtn.disabled = true;
+
+            const loadingId = "loading-" + Date.now();
+            appendLoading(loadingId);
+
+            setTimeout(() => {
+                const loader = document.getElementById(loadingId);
+                if(loader) loader.remove();
+
+                const images = ["LLH1.jpg", "LLH2.jpg", "LLH3.jpg"];
+                const randomImg = images[Math.floor(Math.random() * images.length)];
+                
+                appendMsg(randomImg, true, true);
+            }, 1000 + Math.random() * 1000);
+        }
+
+        function appendLoading(id) {
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = "flex gap-4 w-full";
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center shrink-0 mt-1 bg-[#212121]">
+                    <img src="https://freelogopng.com/images/all_img/1681038325chatgpt-logo-transparent.png" class="avatar-invert">
+                </div>
+                <div class="flex-1 pt-2"><div class="dot-pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+            `;
+            messages.appendChild(div);
+            scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+        }
+
+        function appendMsg(content, isAi, isImage = false) {
+            const div = document.createElement('div');
+            div.className = `flex gap-4 w-full ${isAi ? '' : 'justify-end'}`;
+            
+            if(isAi) {
+                const mediaHtml = isImage 
+                    ? `<div class="max-w-full md:max-w-[400px]">
+                        <img src="${content}" class="rounded-xl border border-white/10 shadow-lg w-full" onerror="this.parentElement.innerHTML='<p class=\"text-red-400 text-xs\">图片没加载出来诶...（检查一下文件名是不是叫 ${content}）</p>'">
+                       </div>`
+                    : `<p class="text-[#ececec] leading-7">${content}</p>`;
+
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center shrink-0 mt-1 bg-[#212121]">
+                        <img src="https://freelogopng.com/images/all_img/1681038325chatgpt-logo-transparent.png" class="avatar-invert">
+                    </div>
+                    <div class="flex-1 pt-1">
+                        <p class="font-semibold text-sm mb-2">ChatGPT</p>
+                        ${mediaHtml}
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `<div class="bg-[#2f2f2f] px-4 py-2.5 rounded-[22px] max-w-[85%] text-white border border-white/5">${content}</div>`;
+            }
+            messages.appendChild(div);
+            
+            if (isImage) {
+                const img = div.querySelector('img');
+                if(img) img.onload = () => scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+            } else {
+                scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+            }
+        }
+
+        userInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
+    </script>
+</body>
+</html>
